@@ -196,8 +196,33 @@ struct PaymentsTabView: View {
     @State private var payments: [Payment] = []
     @State private var message: String = ""
     @State private var selectedMemberIndex: Int = 0
-    @State private var memberBalances: [String: Double] = [:]
-    @State private var memberOwedBalances: [String: Double] = [:]
+    @State private var memberBalances: [String: Double] = [:] // What others owe you
+    @State private var memberOwedBalances: [String: Double] = [:] // What you owe others
+    
+    // Filter out the current user from the member list
+    private var filteredMembers: [(id: String, name: String)] {
+        guard let currentUserID = Auth.auth().currentUser?.uid else { return [] }
+        var filtered: [(id: String, name: String)] = []
+        
+        print("Current User ID: \(currentUserID)")
+        print("Group Member IDs: \(group.memberIDs)")
+        print("Group Member Names: \(group.memberNames)")
+        
+        for (index, memberID) in group.memberIDs.enumerated() {
+            if memberID != currentUserID {
+                if group.memberNames.indices.contains(index) {
+                    filtered.append((id: memberID, name: group.memberNames[index]))
+                } else {
+                    print("Index \(index) out of bounds for memberNames: \(group.memberNames)")
+                }
+            } else {
+                print("Excluding current user: \(memberID) at index \(index)")
+            }
+        }
+        
+        print("Filtered Members: \(filtered)")
+        return filtered
+    }
     
     var body: some View {
         NavigationStack {
@@ -217,29 +242,29 @@ struct PaymentsTabView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(8)
                     
-                    if !group.memberNames.isEmpty {
+                    if !filteredMembers.isEmpty {
                         Picker("Select Person", selection: $selectedMemberIndex) {
-                            ForEach(0..<group.memberNames.count, id: \.self) { index in
-                                Text(group.memberNames[index]).tag(index)
+                            ForEach(filteredMembers.indices, id: \.self) { index in
+                                Text(filteredMembers[index].name).tag(index)
                             }
                         }
                         .pickerStyle(SegmentedPickerStyle())
                         .padding(.horizontal)
                     }
                     
-                    if group.memberIDs.indices.contains(selectedMemberIndex) {
-                        let selectedUserID = group.memberIDs[selectedMemberIndex]
+                    if !filteredMembers.isEmpty && filteredMembers.indices.contains(selectedMemberIndex) {
+                        let selectedUserID = filteredMembers[selectedMemberIndex].id
                         let owesYou = memberBalances[selectedUserID] ?? 0.0
                         let youOwe = memberOwedBalances[selectedUserID] ?? 0.0
                         let net = owesYou - youOwe
                         
                         VStack(spacing: 10) {
-                            Text("\(group.memberNames[selectedMemberIndex]) owes you:")
+                            Text("\(filteredMembers[selectedMemberIndex].name) owes you:")
                                 .font(.headline)
                             Text("£\(String(format: "%.2f", owesYou))")
                                 .font(.title)
                             
-                            Text("You owe \(group.memberNames[selectedMemberIndex]):")
+                            Text("You owe \(filteredMembers[selectedMemberIndex].name):")
                                 .font(.headline)
                             Text("£\(String(format: "%.2f", youOwe))")
                                 .font(.title)
@@ -247,11 +272,11 @@ struct PaymentsTabView: View {
                             Text("Net:")
                                 .font(.headline)
                             if net > 0 {
-                                Text("\(group.memberNames[selectedMemberIndex]) owes you £\(String(format: "%.2f", net))")
+                                Text("\(filteredMembers[selectedMemberIndex].name) owes you £\(String(format: "%.2f", net))")
                                     .font(.largeTitle)
                                     .bold()
                             } else if net < 0 {
-                                Text("You owe \(group.memberNames[selectedMemberIndex]) £\(String(format: "%.2f", abs(net)))")
+                                Text("You owe \(filteredMembers[selectedMemberIndex].name) £\(String(format: "%.2f", abs(net)))")
                                     .font(.largeTitle)
                                     .bold()
                             } else {
@@ -260,13 +285,16 @@ struct PaymentsTabView: View {
                                     .bold()
                             }
                             
-                            NavigationLink("View Details", destination: PaymentDetailsForPersonView(payments: paymentsBetween(with: selectedUserID), group: group, otherMemberName: group.memberNames[selectedMemberIndex], otherMemberID: selectedUserID))
+                            NavigationLink("View Details", destination: PaymentDetailsForPersonView(payments: payments, group: group, otherMemberName: filteredMembers[selectedMemberIndex].name, otherMemberID: selectedUserID))
                                 .padding()
                                 .background(Color.blue)
                                 .foregroundColor(.white)
                                 .cornerRadius(8)
                         }
                         .padding()
+                    } else {
+                        Text("No other members to display payments for.")
+                            .padding()
                     }
                     Spacer()
                 }
@@ -277,32 +305,35 @@ struct PaymentsTabView: View {
         }
     }
     
-    func paymentsBetween(with memberID: String) -> [Payment] {
-        guard let currentUserID = Auth.auth().currentUser?.uid else { return [] }
-        return payments.filter { payment in
-            (payment.setByUid == currentUserID && (payment.shares[memberID]?.paid == false)) ||
-            (payment.setByUid == memberID && (payment.shares[currentUserID]?.paid == false))
-        }
-    }
-    
     func updateMemberBalances() {
-        var owedToYou: [String: Double] = [:]
-        var youOwe: [String: Double] = [:]
+        var owedToYou: [String: Double] = [:] // What others owe you
+        var youOwe: [String: Double] = [:] // What you owe others
         guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        
+        // Initialize balances for all other members to 0
+        for member in filteredMembers {
+            owedToYou[member.id] = 0.0
+            youOwe[member.id] = 0.0
+        }
+        
         for payment in payments {
+            // If I set the payment, others owe me
             if payment.setByUid == currentUserId {
-                for (uid, share) in payment.shares {
-                    if uid != currentUserId && share.paid == false {
+                for (uid, share) in payment.shares where uid != currentUserId {
+                    if !share.paid {
                         owedToYou[uid, default: 0.0] += share.amount
                     }
                 }
-            } else {
-                if let myShare = payment.shares[currentUserId], myShare.paid == false {
+            }
+            // If someone else set the payment, I might owe them
+            if payment.setByUid != currentUserId, payment.shares.keys.contains(currentUserId) {
+                if let myShare = payment.shares[currentUserId], !myShare.paid {
                     let creator = payment.setByUid
                     youOwe[creator, default: 0.0] += myShare.amount
                 }
             }
         }
+        
         self.memberBalances = owedToYou
         self.memberOwedBalances = youOwe
     }
@@ -316,7 +347,10 @@ struct PaymentsTabView: View {
                     self.message = "Error fetching payments: \(error.localizedDescription)"
                     return
                 }
-                guard let docs = snapshot?.documents else { return }
+                guard let docs = snapshot?.documents else {
+                    self.message = "No payments found."
+                    return
+                }
                 self.payments = docs.map { doc in
                     let data = doc.data()
                     let itemName = data["itemName"] as? String ?? ""

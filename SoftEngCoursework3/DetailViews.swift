@@ -71,15 +71,17 @@ struct PaymentDetailsForPersonView: View {
     
     var paymentsTheyOweYou: [Payment] {
         payments.filter { payment in
-            payment.setByUid == currentUserID &&
-            (payment.shares[otherMemberID]?.paid == false)
+            payment.setByUid == currentUserID && // I set it
+            payment.shares.keys.contains(otherMemberID) && // They owe something
+            (payment.shares[otherMemberID]?.paid == false) // Not paid yet
         }
     }
     
     var paymentsYouOweThem: [Payment] {
         payments.filter { payment in
-            payment.setByUid == otherMemberID &&
-            (payment.shares[currentUserID]?.paid == false)
+            payment.setByUid == otherMemberID && // They set it
+            payment.shares.keys.contains(currentUserID) && // I owe something
+            (payment.shares[currentUserID]?.paid == false) // Not paid yet
         }
     }
     
@@ -170,7 +172,6 @@ struct PaymentRow: View {
         }
     }
 }
-
 
 struct PaymentDetailView: View {
     let payment: Payment

@@ -167,6 +167,9 @@ struct HomeView: View {
     @State private var joinCode: String = ""
     @State private var message: String = ""
     @State private var selectedGroup: GroupModel? = nil
+    @State private var showingJoinSheet = false
+    
+    private let lightGreen = Color(red: 0.8, green: 1.0, blue: 0.8)
     
     var body: some View {
         ScrollView {
@@ -174,47 +177,74 @@ struct HomeView: View {
                 Text(userName)
                     .font(.largeTitle)
                     .padding(.top, 50)
-                HStack(spacing: 10) {
-                    Button("Create Group") { createGroup() }
+                
+                // Group Management Section
+                VStack(spacing: 15) {
+                    Button(action: { createGroup() }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Create New Group")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
                         .padding()
                         .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                    TextField("Join Group Code", text: $joinCode)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(maxWidth: 150)
-                    Button("Join") { joinGroup() }
-                        .padding()
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                }
-                if !message.isEmpty {
-                    Text(message).foregroundColor(.red)
-                }
-                ForEach(groups, id: \.id) { group in
-                    Button {
-                        selectedGroup = group
-                    } label: {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("Group Code: \(group.code)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            if !group.memberNames.isEmpty {
-                                Text("Members: " + group.memberNames.joined(separator: ", "))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            } else {
-                                Text("Members: Loading...")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                        .cornerRadius(10)
+                    }
+                    
+                    Button(action: { showingJoinSheet = true }) {
+                        HStack {
+                            Image(systemName: "person.2.fill")
+                            Text("Join a Group")
                         }
+                        .font(.headline)
+                        .foregroundColor(.green)
+                        .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
+                        .background(lightGreen)
+                        .cornerRadius(10)
                     }
                 }
+                
+                if !message.isEmpty {
+                    Text(message)
+                        .foregroundColor(.red)
+                        .padding(.horizontal)
+                }
+                
+                // Groups List
+                if !groups.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Your Groups")
+                            .font(.headline)
+                            .padding(.horizontal)
+                        
+                        ForEach(groups, id: \.id) { group in
+                            Button(action: { selectedGroup = group }) {
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text("Group Code: \(group.code)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    if !group.memberNames.isEmpty {
+                                        Text("Members: " + group.memberNames.joined(separator: ", "))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text("Members: Loading...")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                }
+                
                 Spacer()
             }
             .padding()
@@ -226,6 +256,10 @@ struct HomeView: View {
         }
         .navigationDestination(item: $selectedGroup) { group in
             GroupDetailView(group: group)
+        }
+        .sheet(isPresented: $showingJoinSheet) {
+            JoinGroupSheet(joinCode: $joinCode, message: $message, onJoin: joinGroup)
+                .presentationDetents([.medium])
         }
     }
     
@@ -269,19 +303,20 @@ struct HomeView: View {
                 }
                 self.groups = tempGroups
                 for i in 0..<self.groups.count {
-                    self.fetchMemberNames(for: self.groups[i]) { names in
-                        self.groups[i].memberNames = names
-                        self.groups = self.groups
-                    }
+                    self.fetchMemberNames(for: self.groups[i], index: i)
                 }
             }
     }
     
-    private func fetchMemberNames(for group: GroupModel, completion: @escaping ([String]) -> Void) {
+    private func fetchMemberNames(for group: GroupModel, index groupIndex: Int) {
         let db = Firestore.firestore()
         var names: [String] = []
+        var nameToUidMap: [String: String] = [:] // Map to maintain order
         let memberUIDs = group.memberIDs
         let dispatchGroup = DispatchGroup()
+        
+        print("Fetching names for group \(group.id) with member IDs: \(memberUIDs)")
+        
         for uid in memberUIDs {
             dispatchGroup.enter()
             db.collection("users").document(uid).getDocument { doc, error in
@@ -290,13 +325,27 @@ struct HomeView: View {
                     let firstName = data?["firstName"] as? String ?? ""
                     let lastName = data?["lastName"] as? String ?? ""
                     let fullName = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
-                    names.append(fullName)
+                    nameToUidMap[uid] = fullName
+                } else {
+                    print("Failed to fetch user \(uid): \(error?.localizedDescription ?? "Unknown error")")
+                    nameToUidMap[uid] = uid // Fallback to UID if name not found
                 }
                 dispatchGroup.leave()
             }
         }
+        
         dispatchGroup.notify(queue: .main) {
-            completion(names)
+            // Reconstruct names in the same order as memberIDs
+            for uid in memberUIDs {
+                if let name = nameToUidMap[uid] {
+                    names.append(name)
+                } else {
+                    names.append(uid) // Fallback if somehow missing
+                }
+            }
+            print("Fetched names for group \(group.id): \(names)")
+            self.groups[groupIndex].memberNames = names
+            self.groups = self.groups // Trigger UI update
         }
     }
     
@@ -328,6 +377,7 @@ struct HomeView: View {
                         self.message = "Successfully joined group!"
                         self.joinCode = ""
                         self.fetchGroups()
+                        self.showingJoinSheet = false
                     }
                 }
             }
@@ -349,5 +399,56 @@ struct HomeView: View {
                 self.fetchGroups()
             }
         }
+    }
+}
+
+struct JoinGroupSheet: View {
+    @Binding var joinCode: String
+    @Binding var message: String
+    var onJoin: () -> Void
+    @Environment(\.dismiss) var dismiss
+    
+    private let lightGreen = Color(red: 0.8, green: 1.0, blue: 0.8)
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Join a Group")
+                .font(.title2)
+                .bold()
+                .foregroundColor(.green)
+            
+            TextField("Enter Group Code", text: $joinCode)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding()
+                .background(lightGreen.opacity(0.3))
+                .cornerRadius(8)
+                .submitLabel(.join)
+                .onSubmit {
+                    onJoin()
+                }
+            
+            Button(action: onJoin) {
+                Text("Join Group")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.green)
+                    .cornerRadius(10)
+            }
+            
+            Button(action: { dismiss() }) {
+                Text("Cancel")
+                    .foregroundColor(.gray)
+            }
+            
+            if !message.isEmpty && message.contains("Error") || message.contains("No group found") {
+                Text(message)
+                    .foregroundColor(.red)
+                    .font(.caption)
+            }
+        }
+        .padding()
+        .background(lightGreen.opacity(0.1))
     }
 }

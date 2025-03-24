@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Bucket
+   uuid = "A9BB029B-6B63-4349-8FCC-00A261BFF9DD"
+   type = "1"
+   version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "6155194F-9019-454F-BFB9-D0929F835C08"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "SoftEngCoursework3/SoftEngCoursework3App.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "14"
+            endingLineNumber = "14"
+            landmarkName = "SoftEngCoursework3App"
+            landmarkType = "14">
+            <Locations>
+               <Location
+                  uuid = "6155194F-9019-454F-BFB9-D0929F835C08 - ddfec18588ca8eb3"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SoftEngCoursework3.SoftEngCoursework3App.delegate.getter : SoftEngCoursework3.AppDelegate"
+                  moduleName = "SoftEngCoursework3.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/aaronsandhu/Documents/SoftEngCoursework3/%3Cstdin%3E"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "0"
+                  endingLineNumber = "0">
+               </Location>
+               <Location
+                  uuid = "6155194F-9019-454F-BFB9-D0929F835C08 - 295619e80b510926"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SoftEngCoursework3.SoftEngCoursework3App.init() -&gt; SoftEngCoursework3.SoftEngCoursework3App"
+                  moduleName = "SoftEngCoursework3.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/aaronsandhu/Documents/SoftEngCoursework3/SoftEngCoursework3/SoftEngCoursework3App.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "14"
+                  endingLineNumber = "14">
+               </Location>
+               <Location
+                  uuid = "6155194F-9019-454F-BFB9-D0929F835C08 - d2976de45c50ab81"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "default argument 0 of SoftEngCoursework3.SoftEngCoursework3App.init(delegate: SwiftUI.UIApplicationDelegateAdaptor&lt;SoftEngCoursework3.AppDelegate&gt;) -&gt; SoftEngCoursework3.SoftEngCoursework3App"
+                  moduleName = "SoftEngCoursework3.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/aaronsandhu/Documents/SoftEngCoursework3/SoftEngCoursework3/SoftEngCoursework3App.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "0"
+                  endingLineNumber = "0">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
+</Bucket>
